@@ -1,5 +1,5 @@
 import { Plugin, WorkspaceLeaf, Notice, ItemView, TFile, normalizePath, Modal, TextComponent, ButtonComponent, App } from "obsidian"; 
-import { NovelChapterPluginSettingsTab, NovelChapterPluginSettings, DEFAULT_SETTINGS as EXTERNAL_DEFAULT_SETTINGS, NovelProject } from "./settings"; // Added NovelProject import
+import { NovelChapterPluginSettingsTab, NovelChapterPluginSettings, DEFAULT_SETTINGS as EXTERNAL_DEFAULT_SETTINGS, NovelProject } from "./settings"; 
 
 // Define the constant for the custom view type
 const NOVEL_CHAPTER_VIEW_TYPE = 'novel-chapter-view';
@@ -7,11 +7,10 @@ const NOVEL_CHAPTER_VIEW_TYPE = 'novel-chapter-view';
 // Augment settings for internal use within main.ts
 interface InternalNovelChapterPluginSettings extends NovelChapterPluginSettings {
   lastSelectedNovelId: string | null;
-  // chapterTemplatePath is already in NovelChapterPluginSettings from settings.ts
 }
 
 const DEFAULT_SETTINGS: InternalNovelChapterPluginSettings = {
-  ...EXTERNAL_DEFAULT_SETTINGS, // This will include chapterTemplatePath from the imported defaults
+  ...EXTERNAL_DEFAULT_SETTINGS, 
   lastSelectedNovelId: null,
   novelProjects: Array.isArray(EXTERNAL_DEFAULT_SETTINGS.novelProjects) && EXTERNAL_DEFAULT_SETTINGS.novelProjects.length > 0 
     ? EXTERNAL_DEFAULT_SETTINGS.novelProjects 
@@ -212,140 +211,12 @@ class NovelChapterView extends ItemView {
         cls: 'novel-chapter-new-button'
     });
     newChapterButton.addEventListener('click', async () => {
-        console.log("New Chapter button clicked. Calling handleNewChapterClick..."); 
-        await this.handleNewChapterClick();
+        // Call the plugin's method for creating a chapter
+        await this.plugin.promptAndCreateNewChapter(this.selectedNovelProjectId);
     });
   }
 
-  async handleNewChapterClick(): Promise<void> {
-    console.log("handleNewChapterClick started."); 
-
-    if (!this.selectedNovelProjectId) {
-        console.log("No novel project selected. Aborting."); 
-        new Notice('Please select a novel project first.');
-        return;
-    }
-    console.log("Selected Novel Project ID:", this.selectedNovelProjectId); 
-
-    const currentNovelProject = this.plugin.settings.novelProjects.find(p => p.id === this.selectedNovelProjectId);
-    if (!currentNovelProject || !currentNovelProject.path || currentNovelProject.path.trim() === "") {
-        console.log("Current novel project is invalid or has no path. Aborting.", currentNovelProject); 
-        new Notice('The selected novel project does not have a valid folder path configured.');
-        return;
-    }
-    console.log("Current Novel Project:", currentNovelProject); 
-
-    new ChapterNameModal(this.app, async (chapterName) => {
-        console.log("Chapter name from modal:", chapterName); 
-
-        if (!chapterName || chapterName.trim() === '') { 
-            console.log("Chapter name is empty after modal. Aborting."); 
-            return;
-        }
-
-        const sanitizedFileName = chapterName.replace(/[\\/:*?"<>|]/g, '').trim();
-        console.log("Sanitized file name:", sanitizedFileName); 
-
-        if (sanitizedFileName === '') {
-            console.log("Sanitized file name is empty. Aborting."); 
-            new Notice('Invalid chapter name (results in empty filename after sanitization).');
-            return;
-        }
-
-        const folderPath = normalizePath(currentNovelProject.path);
-        console.log("Normalized folder path:", folderPath); 
-        try {
-            const folderExists = await this.app.vault.adapter.exists(folderPath);
-            console.log("Does folder exist?", folderExists); 
-            if (!folderExists) {
-                 console.log("Folder does not exist. Aborting."); 
-                 new Notice(`Novel project folder "${folderPath}" does not exist. Please create it or check settings.`);
-                 return;
-            }
-        } catch (e) {
-            console.error("Error checking project folder:", e); 
-            new Notice(`Error checking project folder: ${(e as Error).message}`);
-            return;
-        }
-
-        const filePath = normalizePath(`${folderPath}/${sanitizedFileName}.md`);
-        console.log("Full file path for new chapter:", filePath); 
-
-        const fileExists = await this.app.vault.adapter.exists(filePath);
-        console.log("Does file already exist?", fileExists); 
-        if (fileExists) {
-            console.log("File already exists. Aborting."); 
-            new Notice(`A chapter named "${sanitizedFileName}.md" already exists in this novel.`);
-            return;
-        }
-
-        // --- Template Logic ---
-        let fileContent = "";
-        const templatePath = this.plugin.settings.chapterTemplatePath; // Get template path from settings
-        console.log("Chapter template path from settings:", templatePath);
-
-        if (templatePath && templatePath.trim() !== "") {
-            const normalizedTemplatePath = normalizePath(templatePath);
-            console.log("Normalized template path:", normalizedTemplatePath);
-            try {
-                const templateFile = this.app.vault.getAbstractFileByPath(normalizedTemplatePath);
-                if (templateFile instanceof TFile) {
-                    console.log("Template file found:", templateFile.path);
-                    fileContent = await this.app.vault.read(templateFile);
-                    console.log("Raw template content read.");
-                    // Basic placeholder replacement
-                    fileContent = fileContent.replace(/\{\{title\}\}/gi, chapterName);
-                    fileContent = fileContent.replace(/\{\{TITLE\}\}/gi, chapterName); 
-                    
-                    const today = new Date();
-                    const year = today.getFullYear();
-                    const month = String(today.getMonth() + 1).padStart(2, '0'); 
-                    const day = String(today.getDate()).padStart(2, '0');
-                    const formattedDate = `${year}-${month}-${day}`;
-                    fileContent = fileContent.replace(/\{\{date\}\}/gi, formattedDate);
-                    fileContent = fileContent.replace(/\{\{DATE\}\}/gi, formattedDate); 
-                    console.log("Template content after placeholder replacement.");
-                } else {
-                    console.log("Template file not found or is not a TFile at path:", normalizedTemplatePath);
-                    new Notice(`Chapter template file not found at "${normalizedTemplatePath}". Creating a default chapter.`);
-                }
-            } catch (err) {
-                console.error("Error reading chapter template:", err);
-                new Notice(`Error reading template. Creating a default chapter. Check console.`);
-            }
-        }
-
-        if (fileContent === "") { 
-            console.log("No template content, creating default chapter content.");
-            const { propertyNameToChange } = this.plugin.settings;
-            const defaultPropertyValue = ""; 
-
-            fileContent = `---\n`;
-            fileContent += `title: ${chapterName}\n`; 
-            if (propertyNameToChange) { 
-                fileContent += `${propertyNameToChange}: "${defaultPropertyValue}"\n`; 
-            }
-            fileContent += `---\n\n# ${chapterName}\n\n`;
-        }
-        // --- End Template Logic ---
-        
-        console.log("Final content for new file:", fileContent); 
-
-        try {
-            console.log("Attempting to create file..."); 
-            await this.app.vault.create(filePath, fileContent); 
-            console.log("File creation successful."); 
-            new Notice(`Chapter "${chapterName}" created successfully.`);
-        } catch (error) {
-            console.error("Error creating new chapter in vault.create:", error); 
-            new Notice('Failed to create new chapter. Check console for details.');
-        }
-        console.log("Async operation inside modal callback finished.");
-    }).open(); 
-
-    console.log("handleNewChapterClick finished (modal has been opened)."); 
-  }
-
+  // handleNewChapterClick is now moved to the plugin class
 
   async renderChapterTable(): Promise<void> {
     this.tableContainer.empty();
@@ -382,7 +253,8 @@ class NovelChapterView extends ItemView {
 
     const table = this.tableContainer.createEl('table', { cls: 'novel-chapter-table' });
     const headerRow = table.createEl('thead').createEl('tr');
-    headerRow.createEl('th', { text: 'Chapter' });
+    
+    headerRow.createEl('th', { text: `Chapter (${chapterFiles.length})` }); 
     
     if (propertyNameToChange && optionsArray.length > 0) { 
         const propertyHeader = propertyColumnHeader && propertyColumnHeader.trim() !== "" ? propertyColumnHeader : propertyNameToChange;
@@ -440,6 +312,156 @@ class NovelChapterView extends ItemView {
 export default class NovelChapterPlugin extends Plugin {
   settings: InternalNovelChapterPluginSettings;
 
+  // Helper to get sorted chapters for a given project path
+  private getProjectChapters(projectPath: string): TFile[] {
+    if (!projectPath || projectPath.trim() === "") {
+        return [];
+    }
+    const allMarkdownFiles = this.app.vault.getMarkdownFiles();
+    const chapterFiles = allMarkdownFiles.filter(file => isFileInFolder(file, projectPath));
+    chapterFiles.sort((a, b) => a.path.localeCompare(b.path)); 
+    return chapterFiles;
+  }
+
+  // Helper to find which project a file belongs to
+  private findProjectForFile(file: TFile): NovelProject | null {
+    if (!file) return null;
+    for (const project of this.settings.novelProjects) {
+        if (project.path && isFileInFolder(file, project.path)) {
+            return project;
+        }
+    }
+    return null;
+  }
+
+  // Refactored method to prompt for chapter name and create the chapter
+  public async promptAndCreateNewChapter(projectId: string | null): Promise<void> {
+    console.log("promptAndCreateNewChapter called with projectId:", projectId);
+
+    if (!projectId) {
+        console.log("No project ID provided. Aborting chapter creation.");
+        new Notice('Please select a novel project first (e.g., in the Novel Chapters view).');
+        return;
+    }
+
+    const currentNovelProject = this.settings.novelProjects.find(p => p.id === projectId);
+    if (!currentNovelProject || !currentNovelProject.path || currentNovelProject.path.trim() === "") {
+        console.log("Target novel project is invalid or has no path. Aborting.", currentNovelProject);
+        new Notice('The target novel project does not have a valid folder path configured.');
+        return;
+    }
+    console.log("Target Novel Project for new chapter:", currentNovelProject);
+
+    new ChapterNameModal(this.app, async (chapterName) => {
+        console.log("Chapter name from modal for plugin method:", chapterName);
+
+        if (!chapterName || chapterName.trim() === '') {
+            console.log("Chapter name is empty after modal. Aborting.");
+            return;
+        }
+
+        const sanitizedFileName = chapterName.replace(/[\\/:*?"<>|]/g, '').trim();
+        console.log("Sanitized file name:", sanitizedFileName);
+
+        if (sanitizedFileName === '') {
+            console.log("Sanitized file name is empty. Aborting.");
+            new Notice('Invalid chapter name (results in empty filename after sanitization).');
+            return;
+        }
+
+        const folderPath = normalizePath(currentNovelProject.path);
+        console.log("Normalized folder path:", folderPath);
+        try {
+            const folderExists = await this.app.vault.adapter.exists(folderPath);
+            console.log("Does folder exist?", folderExists);
+            if (!folderExists) {
+                 console.log("Folder does not exist. Aborting.");
+                 new Notice(`Novel project folder "${folderPath}" does not exist. Please create it or check settings.`);
+                 return;
+            }
+        } catch (e) {
+            console.error("Error checking project folder:", e);
+            new Notice(`Error checking project folder: ${(e as Error).message}`);
+            return;
+        }
+
+        const filePath = normalizePath(`${folderPath}/${sanitizedFileName}.md`);
+        console.log("Full file path for new chapter:", filePath);
+
+        const fileExists = await this.app.vault.adapter.exists(filePath);
+        console.log("Does file already exist?", fileExists);
+        if (fileExists) {
+            console.log("File already exists. Aborting.");
+            new Notice(`A chapter named "${sanitizedFileName}.md" already exists in this novel.`);
+            return;
+        }
+
+        let fileContent = "";
+        const templatePath = this.settings.chapterTemplatePath;
+        console.log("Chapter template path from settings:", templatePath);
+
+        if (templatePath && templatePath.trim() !== "") {
+            const normalizedTemplatePath = normalizePath(templatePath);
+            console.log("Normalized template path:", normalizedTemplatePath);
+            try {
+                const templateFile = this.app.vault.getAbstractFileByPath(normalizedTemplatePath);
+                if (templateFile instanceof TFile) {
+                    console.log("Template file found:", templateFile.path);
+                    fileContent = await this.app.vault.read(templateFile);
+                    console.log("Raw template content read.");
+                    
+                    fileContent = fileContent.replace(/\{\{title\}\}/gi, chapterName);
+                    fileContent = fileContent.replace(/\{\{TITLE\}\}/gi, chapterName);
+                    
+                    const today = new Date();
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0');
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const formattedDate = `${year}-${month}-${day}`;
+                    fileContent = fileContent.replace(/\{\{date\}\}/gi, formattedDate);
+                    fileContent = fileContent.replace(/\{\{DATE\}\}/gi, formattedDate);
+                    console.log("Template content after placeholder replacement.");
+                } else {
+                    console.log("Template file not found or is not a TFile at path:", normalizedTemplatePath);
+                    new Notice(`Chapter template file not found at "${normalizedTemplatePath}". Creating a default chapter.`);
+                }
+            } catch (err) {
+                console.error("Error reading chapter template:", err);
+                new Notice(`Error reading template. Creating a default chapter. Check console.`);
+            }
+        }
+
+        if (fileContent === "") {
+            console.log("No template content, creating default chapter content.");
+            const { propertyNameToChange } = this.settings;
+            const defaultPropertyValue = "";
+
+            fileContent = `---\n`;
+            fileContent += `title: ${chapterName}\n`;
+            if (propertyNameToChange) {
+                fileContent += `${propertyNameToChange}: "${defaultPropertyValue}"\n`;
+            }
+            fileContent += `---\n\n# ${chapterName}\n\n`;
+        }
+        
+        console.log("Final content for new file:", fileContent);
+
+        try {
+            console.log("Attempting to create file...");
+            await this.app.vault.create(filePath, fileContent);
+            console.log("File creation successful.");
+            new Notice(`Chapter "${chapterName}" created successfully.`);
+        } catch (error) {
+            console.error("Error creating new chapter in vault.create:", error);
+            new Notice('Failed to create new chapter. Check console for details.');
+        }
+        console.log("Async operation inside modal callback finished.");
+    }).open();
+
+    console.log("promptAndCreateNewChapter finished (modal has been opened).");
+}
+
+
   async onload() {
     console.log("Novel Chapter Plugin loaded");
 
@@ -456,6 +478,91 @@ export default class NovelChapterPlugin extends Plugin {
       name: 'Open Novel Chapter View',
       callback: () => this.activateView()
     });
+
+    // --- Add New Chapter Command ---
+    this.addCommand({
+        id: 'add-new-chapter-to-project',
+        name: 'Novel Chapters: Create New Chapter in Project',
+        callback: () => {
+            // Attempt to use the last selected novel ID from settings.
+            // If the view is open and has a selection, that would be more current,
+            // but for a command, lastSelectedNovelId is a reasonable fallback.
+            let targetProjectId = this.settings.lastSelectedNovelId;
+
+            // If no last selected ID, and there's only one project, use that.
+            if (!targetProjectId && this.settings.novelProjects.length === 1) {
+                targetProjectId = this.settings.novelProjects[0].id;
+            }
+            
+            if (!targetProjectId && this.settings.novelProjects.length > 1) {
+                new Notice("Multiple novel projects exist. Please open the Novel Chapters view to select a project first, or ensure one was recently active.");
+                // Optionally, could open the view here: this.activateView();
+                return;
+            }
+            if (!targetProjectId && this.settings.novelProjects.length === 0) {
+                new Notice("No novel projects configured. Please add one in plugin settings.");
+                return;
+            }
+
+            this.promptAndCreateNewChapter(targetProjectId);
+        }
+    });
+
+
+    // --- Add Next Chapter Command ---
+    this.addCommand({
+        id: 'open-next-chapter-in-project',
+        name: 'Novel Chapters: Open Next Chapter in Current Project',
+        checkCallback: (checking: boolean) => {
+            const currentFile = this.app.workspace.getActiveFile();
+            if (!currentFile) return false;
+
+            const project = this.findProjectForFile(currentFile);
+            if (!project) return false;
+            
+            if (checking) return true;
+
+            const chapters = this.getProjectChapters(project.path);
+            const currentIndex = chapters.findIndex(chap => chap.path === currentFile.path);
+
+            if (currentIndex !== -1 && currentIndex < chapters.length - 1) {
+                this.app.workspace.openLinkText(chapters[currentIndex + 1].path, '', false);
+            } else if (currentIndex === chapters.length -1) {
+                new Notice('This is the last chapter in the project.');
+            } else {
+                new Notice('Could not determine current chapter position.');
+            }
+            return true; 
+        }
+    });
+
+    // --- Add Previous Chapter Command ---
+    this.addCommand({
+        id: 'open-previous-chapter-in-project',
+        name: 'Novel Chapters: Open Previous Chapter in Current Project',
+        checkCallback: (checking: boolean) => {
+            const currentFile = this.app.workspace.getActiveFile();
+            if (!currentFile) return false;
+
+            const project = this.findProjectForFile(currentFile);
+            if (!project) return false;
+
+            if (checking) return true;
+
+            const chapters = this.getProjectChapters(project.path);
+            const currentIndex = chapters.findIndex(chap => chap.path === currentFile.path);
+
+            if (currentIndex !== -1 && currentIndex > 0) {
+                this.app.workspace.openLinkText(chapters[currentIndex - 1].path, '', false);
+            } else if (currentIndex === 0) {
+                new Notice('This is the first chapter in the project.');
+            } else {
+                 new Notice('Could not determine current chapter position.');
+            }
+            return true;
+        }
+    });
+
 
     this.addRibbonIcon(this.getIcon(), 'Open Novel Chapter View', () => this.activateView());
 
@@ -485,7 +592,6 @@ export default class NovelChapterPlugin extends Plugin {
             : [{ id: `default-load-${Date.now()}`, name: "Default Novel", path: "" }]; 
     }
     
-    // Ensure each project has required fields, using Partial<NovelProject> for the input type
     this.settings.novelProjects = this.settings.novelProjects.map((p: Partial<NovelProject>): NovelProject => ({ 
         id: p.id || `generated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         name: p.name || "Unnamed Novel",
