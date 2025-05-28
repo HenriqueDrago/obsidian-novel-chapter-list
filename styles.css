@@ -51,7 +51,7 @@ button.novel-chapter-new-button:hover {
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-m);
     background-color: var(--background-secondary);
-    color: var(--link-color);
+    color: var(--text-muted);
     width: auto;
     min-width: 280px;
     max-width: 450px;
@@ -110,7 +110,7 @@ button.novel-chapter-new-button:hover {
 
 /* Chapter Links */
 .novel-chapter-table td a.internal-link {
-    color: var(--text-accent);
+    color: var(--link-color);
     text-decoration: none;
     font-weight: 500;
 }
