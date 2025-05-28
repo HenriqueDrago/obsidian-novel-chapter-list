@@ -51,7 +51,7 @@ button.novel-chapter-new-button:hover {
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-m);
     background-color: var(--background-secondary);
-    color: var(--text-normal);
+    color: var(--link-color);
     width: auto;
     min-width: 280px;
     max-width: 450px;
@@ -67,7 +67,7 @@ button.novel-chapter-new-button:hover {
 
 /* Table Container */
 .novel-chapter-table-container {
-    /* If you need specific container styling, add here */
+    /* Specific container styling */
 }
 
 /* Main Chapter Table */
@@ -107,20 +107,6 @@ button.novel-chapter-new-button:hover {
 .novel-chapter-table td:last-child {
     width: 40%;
 }
-
-/* Alternating row color removed */
-/*
-.novel-chapter-table tr:nth-child(even) {
-    background-color: var(--background-primary-alt);
-}
-*/
-
-/* Row hover effect removed */
-/*
-.novel-chapter-table tr:hover {
-    background-color: var(--background-modifier-hover);
-}
-*/
 
 /* Chapter Links */
 .novel-chapter-table td a.internal-link {
