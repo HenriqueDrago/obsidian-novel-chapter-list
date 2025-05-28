@@ -1,5 +1,5 @@
-import { Plugin, WorkspaceLeaf, Notice, ItemView, TFile, Setting, normalizePath, Modal, TextComponent, ButtonComponent, App } from "obsidian"; // Added Modal, TextComponent, ButtonComponent, App
-import { NovelChapterPluginSettingsTab, NovelChapterPluginSettings, DEFAULT_SETTINGS as EXTERNAL_DEFAULT_SETTINGS, NovelProject } from "./settings";
+import { Plugin, WorkspaceLeaf, Notice, ItemView, TFile, normalizePath, Modal, TextComponent, ButtonComponent, App } from "obsidian"; 
+import { NovelChapterPluginSettingsTab, NovelChapterPluginSettings, DEFAULT_SETTINGS as EXTERNAL_DEFAULT_SETTINGS, NovelProject } from "./settings"; // Added NovelProject import
 
 // Define the constant for the custom view type
 const NOVEL_CHAPTER_VIEW_TYPE = 'novel-chapter-view';
@@ -7,10 +7,11 @@ const NOVEL_CHAPTER_VIEW_TYPE = 'novel-chapter-view';
 // Augment settings for internal use within main.ts
 interface InternalNovelChapterPluginSettings extends NovelChapterPluginSettings {
   lastSelectedNovelId: string | null;
+  // chapterTemplatePath is already in NovelChapterPluginSettings from settings.ts
 }
 
 const DEFAULT_SETTINGS: InternalNovelChapterPluginSettings = {
-  ...EXTERNAL_DEFAULT_SETTINGS,
+  ...EXTERNAL_DEFAULT_SETTINGS, // This will include chapterTemplatePath from the imported defaults
   lastSelectedNovelId: null,
   novelProjects: Array.isArray(EXTERNAL_DEFAULT_SETTINGS.novelProjects) && EXTERNAL_DEFAULT_SETTINGS.novelProjects.length > 0 
     ? EXTERNAL_DEFAULT_SETTINGS.novelProjects 
@@ -44,21 +45,21 @@ class ChapterNameModal extends Modal {
 
     onOpen() {
         const { contentEl } = this;
-        contentEl.empty(); // Clear previous content if any
+        contentEl.empty(); 
 
         contentEl.createEl("h2", { text: "Enter New Chapter Name" });
 
         const inputContainer = contentEl.createDiv({ cls: 'modal-input-container' });
         const textInput = new TextComponent(inputContainer)
             .setPlaceholder("Chapter name");
-        textInput.inputEl.addClass('modal-text-input'); // For potential styling
-        textInput.inputEl.focus(); // Automatically focus the input field
+        textInput.inputEl.addClass('modal-text-input'); 
+        textInput.inputEl.focus(); 
 
         const buttonContainer = contentEl.createDiv({ cls: 'modal-button-container' });
 
         new ButtonComponent(buttonContainer)
             .setButtonText("Create Chapter")
-            .setCta() // Makes it a "call to action" button
+            .setCta() 
             .onClick(() => {
                 const chapterName = textInput.getValue().trim();
                 if (chapterName) {
@@ -67,7 +68,6 @@ class ChapterNameModal extends Modal {
                     this.onSubmit(this.result);
                 } else {
                     new Notice("Chapter name cannot be empty.");
-                    // Optionally, shake the modal or give other visual feedback
                 }
             });
         
@@ -77,10 +77,9 @@ class ChapterNameModal extends Modal {
                 this.close();
             });
 
-        // Allow submitting with Enter key
         textInput.inputEl.addEventListener('keypress', (e) => {
             if (e.key === 'Enter') {
-                e.preventDefault(); // Prevent default form submission if it were in a form
+                e.preventDefault(); 
                 const chapterName = textInput.getValue().trim();
                  if (chapterName) {
                     this.result = chapterName;
@@ -236,11 +235,10 @@ class NovelChapterView extends ItemView {
     }
     console.log("Current Novel Project:", currentNovelProject); 
 
-    // Use the new Modal
     new ChapterNameModal(this.app, async (chapterName) => {
         console.log("Chapter name from modal:", chapterName); 
 
-        if (!chapterName || chapterName.trim() === '') { // Should be handled by modal, but good to double check
+        if (!chapterName || chapterName.trim() === '') { 
             console.log("Chapter name is empty after modal. Aborting."); 
             return;
         }
@@ -281,20 +279,61 @@ class NovelChapterView extends ItemView {
             return;
         }
 
-        const { propertyNameToChange } = this.plugin.settings;
-        const defaultPropertyValue = ""; 
+        // --- Template Logic ---
+        let fileContent = "";
+        const templatePath = this.plugin.settings.chapterTemplatePath; // Get template path from settings
+        console.log("Chapter template path from settings:", templatePath);
 
-        let content = `---\n`;
-        content += `title: ${chapterName}\n`; 
-        if (propertyNameToChange) { 
-            content += `${propertyNameToChange}: "${defaultPropertyValue}"\n`; 
+        if (templatePath && templatePath.trim() !== "") {
+            const normalizedTemplatePath = normalizePath(templatePath);
+            console.log("Normalized template path:", normalizedTemplatePath);
+            try {
+                const templateFile = this.app.vault.getAbstractFileByPath(normalizedTemplatePath);
+                if (templateFile instanceof TFile) {
+                    console.log("Template file found:", templateFile.path);
+                    fileContent = await this.app.vault.read(templateFile);
+                    console.log("Raw template content read.");
+                    // Basic placeholder replacement
+                    fileContent = fileContent.replace(/\{\{title\}\}/gi, chapterName);
+                    fileContent = fileContent.replace(/\{\{TITLE\}\}/gi, chapterName); 
+                    
+                    const today = new Date();
+                    const year = today.getFullYear();
+                    const month = String(today.getMonth() + 1).padStart(2, '0'); 
+                    const day = String(today.getDate()).padStart(2, '0');
+                    const formattedDate = `${year}-${month}-${day}`;
+                    fileContent = fileContent.replace(/\{\{date\}\}/gi, formattedDate);
+                    fileContent = fileContent.replace(/\{\{DATE\}\}/gi, formattedDate); 
+                    console.log("Template content after placeholder replacement.");
+                } else {
+                    console.log("Template file not found or is not a TFile at path:", normalizedTemplatePath);
+                    new Notice(`Chapter template file not found at "${normalizedTemplatePath}". Creating a default chapter.`);
+                }
+            } catch (err) {
+                console.error("Error reading chapter template:", err);
+                new Notice(`Error reading template. Creating a default chapter. Check console.`);
+            }
         }
-        content += `---\n\n# ${chapterName}\n\n`;
-        console.log("Content for new file:", content); 
+
+        if (fileContent === "") { 
+            console.log("No template content, creating default chapter content.");
+            const { propertyNameToChange } = this.plugin.settings;
+            const defaultPropertyValue = ""; 
+
+            fileContent = `---\n`;
+            fileContent += `title: ${chapterName}\n`; 
+            if (propertyNameToChange) { 
+                fileContent += `${propertyNameToChange}: "${defaultPropertyValue}"\n`; 
+            }
+            fileContent += `---\n\n# ${chapterName}\n\n`;
+        }
+        // --- End Template Logic ---
+        
+        console.log("Final content for new file:", fileContent); 
 
         try {
             console.log("Attempting to create file..."); 
-            await this.app.vault.create(filePath, content); 
+            await this.app.vault.create(filePath, fileContent); 
             console.log("File creation successful."); 
             new Notice(`Chapter "${chapterName}" created successfully.`);
         } catch (error) {
@@ -302,7 +341,7 @@ class NovelChapterView extends ItemView {
             new Notice('Failed to create new chapter. Check console for details.');
         }
         console.log("Async operation inside modal callback finished.");
-    }).open(); // Open the modal
+    }).open(); 
 
     console.log("handleNewChapterClick finished (modal has been opened)."); 
   }
@@ -438,19 +477,21 @@ export default class NovelChapterPlugin extends Plugin {
   async loadSettings() {
     const loadedData = await this.loadData();
     this.settings = JSON.parse(JSON.stringify(DEFAULT_SETTINGS)); 
-    Object.assign(this.settings, loadedData);
+    Object.assign(this.settings, loadedData); 
 
     if (!Array.isArray(this.settings.novelProjects) || this.settings.novelProjects.length === 0) {
         this.settings.novelProjects = Array.isArray(EXTERNAL_DEFAULT_SETTINGS.novelProjects) && EXTERNAL_DEFAULT_SETTINGS.novelProjects.length > 0
-            ? JSON.parse(JSON.stringify(EXTERNAL_DEFAULT_SETTINGS.novelProjects))
-            : [{ id: `default-load-${Date.now()}`, name: "Default Novel", path: "" }];
+            ? JSON.parse(JSON.stringify(EXTERNAL_DEFAULT_SETTINGS.novelProjects)) 
+            : [{ id: `default-load-${Date.now()}`, name: "Default Novel", path: "" }]; 
     }
     
-    this.settings.novelProjects = this.settings.novelProjects.map((p: any) => ({
+    // Ensure each project has required fields, using Partial<NovelProject> for the input type
+    this.settings.novelProjects = this.settings.novelProjects.map((p: Partial<NovelProject>): NovelProject => ({ 
         id: p.id || `generated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         name: p.name || "Unnamed Novel",
         path: p.path || ""
     }));
+
 
     if (this.settings.lastSelectedNovelId && !this.settings.novelProjects.find(p => p.id === this.settings.lastSelectedNovelId)) {
         this.settings.lastSelectedNovelId = null; 
