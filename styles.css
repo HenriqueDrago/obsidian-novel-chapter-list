@@ -1,0 +1,172 @@
+/* styles.css for Novel Chapter Plugin */
+
+/* Overall View Container */
+.novel-chapter-view-container {
+    padding: 15px 20px;
+    height: 100%;
+    box-sizing: border-box;
+    overflow-y: auto;
+}
+
+/* Controls Area (Novel Selector Dropdown) */
+.novel-chapter-controls {
+    margin-bottom: 25px;
+    display: flex;
+    align-items: center;
+}
+.novel-chapter-controls-line {
+    display: flex;
+    align-items: center; /* Vertically aligns dropdown and button */
+    gap: 10px;          /* Creates a small space between the dropdown and the button */
+}
+
+/* Styling for the new chapter button */
+button.novel-chapter-new-button {
+    padding: 10px 15px; /* Matches the select dropdown's padding */
+    font-size: var(--font-ui-normal); /* Matches select */
+    border: 1px solid var(--interactive-accent);
+    border-radius: var(--radius-m); /* Matches select */
+    background-color: var(--interactive-accent);
+    color: var(--text-on-accent); /* Ensures text is readable on accent background */
+    cursor: pointer;
+    white-space: nowrap; /* Prevents button text from wrapping */
+    line-height: normal; /* Ensure consistent line height with select */
+}
+
+button.novel-chapter-new-button:hover {
+    background-color: var(--interactive-accent-hover);
+    border-color: var(--interactive-accent-hover);
+}
+
+.novel-chapter-controls-line select.novel-project-selector {
+    flex-grow: 0; /* Don't allow select to grow excessively if container is wide */
+    flex-shrink: 1; /* Allow select to shrink if needed */
+}
+
+.novel-chapter-controls select.novel-project-selector {
+    padding: 5px 12px; /* Reduced vertical (8px) and horizontal (12px) padding */
+    font-size: var(--font-ui-normal);
+    line-height: 1.4;   /* Using a unitless line-height, common for good spacing (adjust if needed) */
+    
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    width: auto;
+    min-width: 280px;
+    max-width: 450px;
+    cursor: pointer;
+    box-sizing: border-box;
+}
+
+.novel-chapter-controls select.novel-project-selector:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 2px var(--interactive-accent-translucent);
+}
+
+/* Table Container */
+.novel-chapter-table-container {
+    /* If you need specific container styling, add here */
+}
+
+/* Main Chapter Table */
+.novel-chapter-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font- Hideo --font-text-size); /* Use theme's text size */
+    table-layout: fixed;
+}
+
+.novel-chapter-table th,
+.novel-chapter-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--background-modifier-border);
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.novel-chapter-table th {
+    background-color: var(--background-secondary-alt);
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: var(--font-ui-small);
+}
+
+/* Specific column widths (optional, adjust as needed) */
+.novel-chapter-table th:first-child,
+.novel-chapter-table td:first-child {
+    width: 60%;
+}
+
+.novel-chapter-table th:last-child,
+.novel-chapter-table td:last-child {
+    width: 40%;
+}
+
+/* Alternating row color removed */
+/*
+.novel-chapter-table tr:nth-child(even) {
+    background-color: var(--background-primary-alt);
+}
+*/
+
+/* Row hover effect removed */
+/*
+.novel-chapter-table tr:hover {
+    background-color: var(--background-modifier-hover);
+}
+*/
+
+/* Chapter Links */
+.novel-chapter-table td a.internal-link {
+    color: var(--text-accent);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.novel-chapter-table td a.internal-link:hover {
+    text-decoration: underline;
+    color: var(--text-accent-hover);
+}
+
+/* Property Dropdown within table cells */
+.novel-chapter-table td select {
+    padding: 8px 10px;
+    font-size: var(--font-ui-small);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+    color: var(--text-normal);
+    width: 100%;
+    box-sizing: border-box;
+    cursor: pointer;
+}
+
+.novel-chapter-table td select:focus {
+    outline: none;
+    border-color: var(--interactive-accent);
+    box-shadow: 0 0 0 1px var(--interactive-accent-translucent);
+}
+
+
+/* Styling for messages (e.g., "No chapters found", "Please select a novel") */
+.novel-chapter-table-container > div:only-child:not(.novel-chapter-table),
+.novel-chapter-controls > div:only-child:not(select) {
+    padding: 30px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: var(--font-ui-normal);
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    background-color: var(--background-secondary-alt);
+}
+
+.novel-chapter-controls:empty + .novel-chapter-table-container,
+.novel-chapter-controls > span {
+    /* Styles for when "No novel projects configured" is shown in controls */
+}
