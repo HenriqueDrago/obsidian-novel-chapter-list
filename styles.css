@@ -6,75 +6,77 @@
     height: 100%;
     box-sizing: border-box;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
-/* Controls Area (Novel Selector Dropdown) */
+/* Controls Area */
 .novel-chapter-controls {
-    margin-bottom: 25px;
+    margin-bottom: 20px;
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    gap: 12px;
 }
 .novel-chapter-controls-line {
     display: flex;
-    align-items: center; /* Vertically aligns dropdown and button */
-    gap: 10px;          /* Creates a small space between the dropdown and the button */
+    align-items: center;
+    gap: 10px;
+    width: 100%;
 }
 
-/* Styling for the new chapter button */
+/* Project Selector */
+.novel-chapter-controls select.novel-project-selector {
+    flex-grow: 1;
+    /* padding: 8px 12px; */
+    font-size: var(--font-ui-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    background-color: var(--background-secondary);
+    min-width: 200px;
+}
+
+/* New Chapter Button */
 button.novel-chapter-new-button {
-    padding: 10px 15px; /* Matches the select dropdown's padding */
-    font-size: var(--font-ui-normal); /* Matches select */
-    border: 1px solid var(--interactive-accent);
-    border-radius: var(--radius-m); /* Matches select */
+    flex-shrink: 0;
+    padding: 8px 15px;
     background-color: var(--interactive-accent);
-    color: var(--text-on-accent); /* Ensures text is readable on accent background */
-    cursor: pointer;
-    white-space: nowrap; /* Prevents button text from wrapping */
-    line-height: normal; /* Ensure consistent line height with select */
+    color: var(--text-on-accent);
+    border: none;
 }
-
 button.novel-chapter-new-button:hover {
     background-color: var(--interactive-accent-hover);
-    border-color: var(--interactive-accent-hover);
 }
 
-.novel-chapter-controls-line select.novel-project-selector {
-    flex-grow: 0; /* Don't allow select to grow excessively if container is wide */
-    flex-shrink: 1; /* Allow select to shrink if needed */
-}
-
-.novel-chapter-controls select.novel-project-selector {
-    padding: 5px 12px; /* Reduced vertical (8px) and horizontal (12px) padding */
+/* Search Input and Filter Select */
+.novel-chapter-search-input,
+.novel-chapter-filter-select {
+    /* padding: 8px 12px; */
     font-size: var(--font-ui-normal);
-    line-height: 1.4;   /* Using a unitless line-height, common for good spacing (adjust if needed) */
-    
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-m);
     background-color: var(--background-secondary);
     color: var(--text-muted);
-    width: auto;
-    min-width: 280px;
-    max-width: 450px;
-    cursor: pointer;
-    box-sizing: border-box;
+}
+.novel-chapter-search-input {
+    flex-grow: 1;
+}
+.novel-chapter-filter-select {
+    min-width: 180px;
+    flex-shrink: 0;
 }
 
-.novel-chapter-controls select.novel-project-selector:focus {
-    outline: none;
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 2px var(--interactive-accent-translucent);
-}
 
 /* Table Container */
 .novel-chapter-table-container {
-    /* Specific container styling */
+    flex-grow: 1;
+    overflow-y: auto;
 }
 
 /* Main Chapter Table */
 .novel-chapter-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: var(--font- Hideo --font-text-size); /* Use theme's text size */
+    font-size: var(--font-text-size);
     table-layout: fixed;
 }
 
@@ -86,73 +88,69 @@ button.novel-chapter-new-button:hover {
     vertical-align: middle;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .novel-chapter-table th {
     background-color: var(--background-secondary-alt);
-    color: var(--text-muted);
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-size: var(--font-ui-small);
 }
 
-/* Specific column widths (optional, adjust as needed) */
-.novel-chapter-table th:first-child,
-.novel-chapter-table td:first-child {
-    width: 60%;
-}
-
-.novel-chapter-table th:last-child,
-.novel-chapter-table td:last-child {
-    width: 40%;
-}
+/* Column Widths */
+.novel-chapter-table th:first-child { width: 50%; } /* Chapter Name */
+.novel-chapter-table th.actions-header { width: 120px; text-align: center; }
 
 /* Chapter Links */
 .novel-chapter-table td a.internal-link {
-    color: var(--link-color);
-    text-decoration: none;
     font-weight: 500;
-}
-
-.novel-chapter-table td a.internal-link:hover {
-    text-decoration: underline;
-    color: var(--text-accent-hover);
 }
 
 /* Property Dropdown within table cells */
 .novel-chapter-table td select {
-    padding: 8px 10px;
+    padding: 6px 8px;
     font-size: var(--font-ui-small);
     border: 1px solid var(--background-modifier-border);
     border-radius: var(--radius-s);
     background-color: var(--background-secondary);
-    color: var(--text-normal);
     width: 100%;
     box-sizing: border-box;
-    cursor: pointer;
 }
 
-.novel-chapter-table td select:focus {
-    outline: none;
-    border-color: var(--interactive-accent);
-    box-shadow: 0 0 0 1px var(--interactive-accent-translucent);
+/* Actions Cell & Buttons */
+.novel-chapter-table td.actions-cell {
+    text-align: center;
+    white-space: nowrap;
+}
+.actions-cell .button-component.action-button {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+    padding: 4px;
+    margin: 0 5px;
+    vertical-align: middle;
+    color: var(--text-muted);
+}
+.actions-cell .button-component.action-button:hover {
+    color: var(--text-normal);
+}
+.actions-cell .button-component.action-button.delete-button:hover {
+    color: var(--text-error);
 }
 
+/* Confirmation Modal */
+.confirm-modal .modal-button-container {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 20px;
+}
 
-/* Styling for messages (e.g., "No chapters found", "Please select a novel") */
-.novel-chapter-table-container > div:only-child:not(.novel-chapter-table),
-.novel-chapter-controls > div:only-child:not(select) {
+/* Placeholder Messages */
+.novel-chapter-table-container > div:only-child {
     padding: 30px 20px;
     text-align: center;
     color: var(--text-muted);
-    font-size: var(--font-ui-normal);
+    font-style: italic;
     border: 1px dashed var(--background-modifier-border);
     border-radius: var(--radius-m);
-    background-color: var(--background-secondary-alt);
-}
-
-.novel-chapter-controls:empty + .novel-chapter-table-container,
-.novel-chapter-controls > span {
-    /* Styles for when "No novel projects configured" is shown in controls */
 }
