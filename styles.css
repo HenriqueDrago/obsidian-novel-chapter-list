@@ -154,3 +154,27 @@ button.novel-chapter-new-button:hover {
     border: 1px dashed var(--background-modifier-border);
     border-radius: var(--radius-m);
 }
+
+/* --- CUSTOM MODIFICATIONS --- */
+
+/* 1. Allow Chapter Name Link to Wrap 
+  This targets the first cell (the chapter name) in each data row of the table.
+  It overrides the 'nowrap' and 'ellipsis' behavior to allow long chapter names
+  to wrap onto multiple lines.
+*/
+.novel-chapter-table td:first-child {
+    white-space: normal;
+    word-break: break-word; /* Helps with long names without spaces */
+    overflow: visible; /* Allow content to be visible */
+    text-overflow: clip; /* Stop the "..." */
+}
+
+/* 2. Enlarge Rename/Create Chapter Modal Input
+  This targets the text input field inside the "New Chapter" or "Rename Chapter"
+  modal, making it use the full width of the modal for better usability.
+  The class 'modal-text-input' is added in main.ts.
+*/
+.modal .modal-text-input {
+    width: 100%;
+    box-sizing: border-box; /* Important for width calculation with padding/border */
+}
