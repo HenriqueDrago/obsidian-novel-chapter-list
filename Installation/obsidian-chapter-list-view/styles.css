@@ -1,0 +1,179 @@
+/* styles.css for Novel Chapter Plugin */
+
+/* Overall View Container */
+.novel-chapter-view-container {
+    padding: 15px 20px;
+    height: 100%;
+    box-sizing: border-box;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Controls Area */
+.novel-chapter-controls {
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.novel-chapter-controls-line {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+}
+
+/* Project Selector */
+.novel-chapter-controls select.novel-project-selector {
+    flex-grow: 1;
+    /* padding: 8px 12px; */
+    font-size: var(--font-ui-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    background-color: var(--background-secondary);
+    min-width: 200px;
+}
+
+/* New Chapter Button */
+button.novel-chapter-new-button {
+    flex-shrink: 0;
+    padding-bottom: 2px;
+    color: var(--text-on-accent);
+    border: none;
+    font-size: large;
+}
+button.novel-chapter-new-button:hover {
+    background-color: var(--interactive-accent-hover);
+}
+
+/* Search Input and Filter Select */
+.novel-chapter-search-input,
+.novel-chapter-filter-select {
+    /* padding: 8px 12px; */
+    font-size: var(--font-ui-normal);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-m);
+    background-color: var(--background-secondary);
+    color: var(--text-muted);
+}
+.novel-chapter-search-input {
+    flex-grow: 1;
+}
+.novel-chapter-filter-select {
+    min-width: 180px;
+    flex-shrink: 0;
+}
+
+
+/* Table Container */
+.novel-chapter-table-container {
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+/* Main Chapter Table */
+.novel-chapter-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-text-size);
+    table-layout: fixed;
+}
+
+.novel-chapter-table th,
+.novel-chapter-table td {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid var(--background-modifier-border);
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.novel-chapter-table th {
+    background-color: var(--background-secondary-alt);
+    font-weight: 600;
+}
+
+/* Column Widths */
+.novel-chapter-table th:first-child { width: 50%; } /* Chapter Name */
+.novel-chapter-table th.actions-header { width: 120px; text-align: center; }
+
+/* Chapter Links */
+.novel-chapter-table td a.internal-link {
+    font-weight: 500;
+}
+
+/* Property Dropdown within table cells */
+.novel-chapter-table td select {
+    padding: 6px 8px;
+    font-size: var(--font-ui-small);
+    border: 1px solid var(--background-modifier-border);
+    border-radius: var(--radius-s);
+    background-color: var(--background-secondary);
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Placeholder Messages */
+.novel-chapter-table-container > div:only-child {
+    padding: 30px 20px;
+    text-align: center;
+    color: var(--text-muted);
+    font-style: italic;
+    border: 1px dashed var(--background-modifier-border);
+    border-radius: var(--radius-m);
+}
+
+/* --- CUSTOM MODIFICATIONS --- */
+
+/* 1. Allow Chapter Name Link to Wrap 
+  This targets the first cell (the chapter name) in each data row of the table.
+  It overrides the 'nowrap' and 'ellipsis' behavior to allow long chapter names
+  to wrap onto multiple lines.
+*/
+.novel-chapter-table td:first-child {
+    white-space: normal;
+    word-break: break-word; /* Helps with long names without spaces */
+    overflow: visible; /* Allow content to be visible */
+    text-overflow: clip; /* Stop the "..." */
+}
+
+/* 2. Enlarge Rename/Create Chapter Modal Input
+  This targets the text input field inside the "New Chapter" or "Rename Chapter"
+  modal, making it use the full width of the modal for better usability.
+  The class 'modal-text-input' is added in main.ts.
+*/
+.modal .modal-text-input {
+    width: 100%;
+    box-sizing: border-box; /* Important for width calculation with padding/border */
+}
+
+/* --- STYLES FOR FOLDER GROUPS --- */
+
+/* Group Header Row */
+.novel-chapter-table tr.chapter-group-header {
+	background-color: var(--background-secondary);
+	font-weight: 600;
+	cursor: pointer;
+	user-select: none; /* Prevent text selection on click */
+	position: sticky;
+	top: 0; /* Make headers stick to the top when scrolling */
+	z-index: 1; /* Ensure it stays above chapter rows */
+}
+
+.novel-chapter-table tr.chapter-group-header:hover {
+	background-color: var(--background-secondary-alt);
+}
+
+.novel-chapter-table tr.chapter-group-header td {
+	border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+
+/* Toggle Icon in the Header */
+.chapter-group-header .group-toggle-icon {
+	display: inline-block;
+	vertical-align: middle;
+	margin-right: 4px;
+}
