@@ -14,7 +14,9 @@ export interface NovelChapterPluginSettings {
 	propertyNameToChange: string;
 	propertyColumnHeader: string;
 	propertyOptions: string;
-	chapterTemplatePath: string; // New setting for the chapter template file path
+	chapterTemplatePath: string;
+	otherGroupName: string;
+	excludeOtherFromCount: boolean;
 }
 
 // Define the default settings
@@ -30,6 +32,8 @@ export const DEFAULT_SETTINGS: NovelChapterPluginSettings = {
 	propertyColumnHeader: "",
 	propertyOptions: "To Do, Done, In Progress", // Default options for the dropdown
 	chapterTemplatePath: "", // Default to no template
+	otherGroupName: "Other", // Default name for the "Other" group
+	excludeOtherFromCount: false, // Default to including "Other" in counts
 };
 
 // Helper to generate a unique ID
@@ -51,8 +55,6 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 		containerEl.empty();
 
 		containerEl.createEl("h2", { text: "Novel Chapter Plugin Settings" });
-
-		containerEl.createEl("h3", { text: "Chapter Properties & Template" });
 
 		new Setting(containerEl)
 			.setName("Target Property Name")
@@ -121,6 +123,35 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 						this.plugin.settings.chapterTemplatePath = value.trim();
 						await this.plugin.saveSettings();
 						// No direct view refresh needed here unless the view uses this setting directly for display
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Name for "Other" group')
+			.setDesc(
+				"Set a custom name for the group containing chapters not in a subfolder."
+			)
+			.addText((text) =>
+				text
+					.setPlaceholder("Other")
+					.setValue(this.plugin.settings.otherGroupName)
+					.onChange(async (value) => {
+						this.plugin.settings.otherGroupName = value || "Other";
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName('Exclude "Other" group from total count')
+			.setDesc(
+				"If enabled, chapters in this group will not be included in the total chapter count at the top of the view."
+			)
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.excludeOtherFromCount)
+					.onChange(async (value) => {
+						this.plugin.settings.excludeOtherFromCount = value;
+						await this.plugin.saveSettings();
 					})
 			);
 

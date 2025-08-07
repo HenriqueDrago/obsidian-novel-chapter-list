@@ -149,3 +149,31 @@ button.novel-chapter-new-button:hover {
     width: 100%;
     box-sizing: border-box; /* Important for width calculation with padding/border */
 }
+
+/* --- STYLES FOR FOLDER GROUPS --- */
+
+/* Group Header Row */
+.novel-chapter-table tr.chapter-group-header {
+	background-color: var(--background-secondary);
+	font-weight: 600;
+	cursor: pointer;
+	user-select: none; /* Prevent text selection on click */
+	position: sticky;
+	top: 0; /* Make headers stick to the top when scrolling */
+	z-index: 1; /* Ensure it stays above chapter rows */
+}
+
+.novel-chapter-table tr.chapter-group-header:hover {
+	background-color: var(--background-secondary-alt);
+}
+
+.novel-chapter-table tr.chapter-group-header td {
+	border-bottom: 1px solid var(--background-modifier-border-hover);
+}
+
+/* Toggle Icon in the Header */
+.chapter-group-header .group-toggle-icon {
+	display: inline-block;
+	vertical-align: middle;
+	margin-right: 4px;
+}

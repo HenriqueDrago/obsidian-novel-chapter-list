@@ -9,7 +9,10 @@ import {
 	TextComponent,
 	ButtonComponent,
 	App,
-  Menu,
+	Menu,
+	setIcon,
+	TFolder,
+	MenuItem,
 } from "obsidian";
 import {
 	NovelChapterPluginSettingsTab,
@@ -378,10 +381,7 @@ class NovelChapterView extends ItemView {
 				const currentIndex = chapters.findIndex(
 					(chap) => chap.path === currentFile.path
 				);
-				if (
-					currentIndex !== -1 &&
-					currentIndex < chapters.length - 1
-				) {
+				if (currentIndex !== -1 && currentIndex < chapters.length - 1) {
 					this.app.workspace.openLinkText(
 						chapters[currentIndex + 1].path,
 						"",
@@ -468,9 +468,10 @@ class NovelChapterView extends ItemView {
 			return;
 		}
 
+		const normalizedChaptersFolderPath = normalizePath(chaptersFolderPath);
 		const files = this.app.vault.getMarkdownFiles();
 		let chapterFiles = files.filter((file) =>
-			isFileInFolder(file, chaptersFolderPath)
+			isFileInFolder(file, normalizedChaptersFolderPath)
 		);
 
 		// Apply Filters
@@ -490,99 +491,245 @@ class NovelChapterView extends ItemView {
 			);
 		}
 
-		chapterFiles.sort((a, b) => a.path.localeCompare(b.path));
-
 		if (chapterFiles.length === 0) {
 			this.tableContainer.setText(
-				`No chapters found in "${chaptersFolderPath}" matching your criteria.`
+				`No chapters found in "${normalizedChaptersFolderPath}" matching your criteria.`
 			);
 			return;
+		}
+
+		// Use new setting for the "Other" group name
+		const OTHER_GROUP_NAME = this.plugin.settings.otherGroupName || "Other";
+		const groupedChapters = new Map<string, TFile[]>();
+
+		for (const file of chapterFiles) {
+			const folderPathWithSlash = normalizedChaptersFolderPath.endsWith("/")
+				? normalizedChaptersFolderPath
+				: `${normalizedChaptersFolderPath}/`;
+			const relativePath = normalizePath(file.path).substring(
+				folderPathWithSlash.length
+			);
+			const pathParts = relativePath.split("/");
+
+			let groupName = OTHER_GROUP_NAME;
+			if (pathParts.length > 1) {
+				groupName = pathParts[0];
+			}
+
+			if (!groupedChapters.has(groupName)) {
+				groupedChapters.set(groupName, []);
+			}
+			groupedChapters.get(groupName)?.push(file);
+		}
+
+		for (const filesInGroup of groupedChapters.values()) {
+			filesInGroup.sort((a, b) => a.path.localeCompare(b.path));
+		}
+
+		const sortedGroupNames = Array.from(groupedChapters.keys()).sort((a, b) => {
+			if (a === OTHER_GROUP_NAME) return 1;
+			if (b === OTHER_GROUP_NAME) return -1;
+			return a.localeCompare(b);
+		});
+
+		// Calculate total count for header based on new setting
+		let totalCount = chapterFiles.length;
+		if (
+			this.plugin.settings.excludeOtherFromCount &&
+			groupedChapters.has(OTHER_GROUP_NAME)
+		) {
+			totalCount -= groupedChapters.get(OTHER_GROUP_NAME)!.length;
 		}
 
 		const table = this.tableContainer.createEl("table", {
 			cls: "novel-chapter-table",
 		});
-		const headerRow = table.createEl("thead").createEl("tr");
 
-		headerRow.createEl("th", { text: `Chapter (${chapterFiles.length})` });
+		const numColumns =
+			1 + (propertyNameToChange && optionsArray.length > 0 ? 1 : 0);
+
+		// Render Table Header with new total count
+		const thead = table.createEl("thead");
+		const headerRow = thead.createEl("tr");
+		headerRow.createEl("th", { text: `Chapter (${totalCount})` });
 		if (propertyNameToChange && optionsArray.length > 0) {
 			const propertyHeader =
 				propertyColumnHeader.trim() || propertyNameToChange;
 			headerRow.createEl("th", { text: propertyHeader });
 		}
-		// The "Actions" header column has been removed.
 
 		const tbody = table.createEl("tbody");
-		for (const file of chapterFiles) {
-			const row = tbody.createEl("tr");
-			const chapterCell = row.createEl("td");
-			const chapterLink = chapterCell.createEl("a", {
-				text: file.basename,
-				href: "#",
-				cls: "internal-link",
+		for (const groupName of sortedGroupNames) {
+			const groupFiles = groupedChapters.get(groupName)!;
+			const groupId = `group-${groupName.replace(/[^a-zA-Z0-9]/g, "-")}`;
+
+			const groupHeaderRow = tbody.createEl("tr", {
+				cls: "chapter-group-header",
 			});
 
-			chapterLink.addEventListener("click", (ev) => {
-				ev.preventDefault();
-				this.app.workspace.openLinkText(file.path, "", false);
+			const groupHeaderCell = groupHeaderRow.createEl("td");
+			groupHeaderCell.colSpan = numColumns;
+
+			const iconEl = groupHeaderCell.createSpan({ cls: "group-toggle-icon" });
+			setIcon(iconEl, "chevron-down");
+
+			groupHeaderCell.createSpan({
+				text: ` ${groupName} (${groupFiles.length})`,
 			});
 
-			// --- CONTEXT MENU ---
-			chapterLink.addEventListener("contextmenu", (ev: MouseEvent) => {
-				ev.preventDefault();
-				const menu = new Menu();
+			groupHeaderRow.addEventListener("click", () => {
+				const isCollapsed = groupHeaderRow.classList.toggle("collapsed");
+				setIcon(iconEl, isCollapsed ? "chevron-right" : "chevron-down");
 
-				menu.addItem((item) =>
-					item
-						.setTitle("Rename")
-						.setIcon("pencil")
-						.onClick(() => {
-							this.plugin.promptAndRenameChapter(file);
-						})
+				const chapterRows = tbody.querySelectorAll<HTMLElement>(
+					`tr.chapter-data-row[data-group-id="${groupId}"]`
 				);
-
-				menu.addItem((item) =>
-					item
-						.setTitle("Delete")
-						.setIcon("trash")
-						.onClick(() => {
-							this.plugin.promptAndDeleteChapter(file);
-						})
-				);
-
-				menu.showAtMouseEvent(ev);
-			});
-
-			if (propertyNameToChange && optionsArray.length > 0) {
-				const propertyCell = row.createEl("td");
-				const selectEl = propertyCell.createEl("select");
-				const fileCache = this.app.metadataCache.getFileCache(file);
-				const currentPropertyValue =
-					fileCache?.frontmatter?.[propertyNameToChange] || "";
-
-				const defaultOption = selectEl.createEl("option", {
-					text: "--- Select ---",
-					value: "",
+				chapterRows.forEach((row) => {
+					row.style.display = isCollapsed ? "none" : "";
 				});
-				if (!currentPropertyValue) defaultOption.selected = true;
+			});
 
-				optionsArray.forEach((option) => {
-					const optionEl = selectEl.createEl("option", {
-						text: option,
-						value: option,
-					});
-					if (option === currentPropertyValue)
-						optionEl.selected = true;
+			for (const file of groupFiles) {
+				const row = tbody.createEl("tr", { cls: "chapter-data-row" });
+				row.dataset.groupId = groupId;
+
+				const chapterCell = row.createEl("td");
+				const chapterLink = chapterCell.createEl("a", {
+					text: file.basename,
+					href: "#",
+					cls: "internal-link",
 				});
 
-				selectEl.addEventListener("change", async (event) => {
-					const newValue = (event.target as HTMLSelectElement).value;
-					await this.plugin.updateChapterProperty(
-						file,
-						propertyNameToChange,
-						newValue
+				chapterLink.addEventListener("click", (ev) => {
+					ev.preventDefault();
+					this.app.workspace.openLinkText(file.path, "", false);
+				});
+
+				chapterLink.addEventListener("contextmenu", (ev: MouseEvent) => {
+					ev.preventDefault();
+					const menu = new Menu();
+
+					// Rename Action
+					menu.addItem((item: MenuItem) =>
+						item
+							.setTitle("Rename")
+							.setIcon("pencil")
+							.onClick(() => {
+								this.plugin.promptAndRenameChapter(file);
+							})
 					);
+
+					// Delete Action
+					menu.addItem((item: MenuItem) =>
+						item
+							.setTitle("Delete")
+							.setIcon("trash")
+							.onClick(() => {
+								this.plugin.promptAndDeleteChapter(file);
+							})
+					);
+
+					menu.addSeparator();
+
+					// Move Action - Opens a new menu onClick
+					menu.addItem((item: MenuItem) => {
+						item
+							.setTitle("Move to...")
+							.setIcon("folder-move")
+							.onClick(() => {
+								// Create a new menu that acts as the submenu
+								const folderMenu = new Menu();
+
+								const projectSubfolders: string[] = [];
+								const projectFolder = this.app.vault.getAbstractFileByPath(
+									normalizedChaptersFolderPath
+								);
+								if (projectFolder instanceof TFolder) {
+									for (const child of projectFolder.children) {
+										if (child instanceof TFolder) {
+											projectSubfolders.push(child.path);
+										}
+									}
+								}
+								projectSubfolders.sort();
+
+								const OTHER_GROUP_NAME = this.plugin.settings.otherGroupName || "Other";
+								const currentFileParentPath = file.parent?.path || "";
+
+								// Add "Other" folder option to the new menu
+								folderMenu.addItem((subitem: MenuItem) => {
+									subitem
+										.setTitle(OTHER_GROUP_NAME)
+										.setIcon("folder-up")
+										.onClick(() => {
+											this.plugin.moveChapter(file, normalizedChaptersFolderPath);
+										});
+
+									if (currentFileParentPath === normalizedChaptersFolderPath) {
+										subitem.setDisabled(true);
+									}
+								});
+
+								if (projectSubfolders.length > 0) {
+									folderMenu.addSeparator();
+								}
+
+								// Add actual subfolders to the new menu
+								projectSubfolders.forEach((folderPath) => {
+									const folderName = folderPath.split("/").pop() || folderPath;
+									folderMenu.addItem((subitem: MenuItem) => {
+										subitem
+											.setTitle(folderName)
+											.setIcon("folder")
+											.onClick(() => {
+												this.plugin.moveChapter(file, folderPath);
+											});
+
+										if (currentFileParentPath === normalizePath(folderPath)) {
+											subitem.setDisabled(true);
+										}
+									});
+								});
+
+								// Show the new menu at the location of the original click
+								folderMenu.showAtMouseEvent(ev);
+							});
+					});
+
+					menu.showAtMouseEvent(ev);
 				});
+				
+				if (propertyNameToChange && optionsArray.length > 0) {
+					const propertyCell = row.createEl("td");
+					const selectEl = propertyCell.createEl("select");
+					const fileCache = this.app.metadataCache.getFileCache(file);
+					const currentPropertyValue =
+						fileCache?.frontmatter?.[propertyNameToChange] || "";
+
+					const defaultOption = selectEl.createEl("option", {
+						text: "--- Select ---",
+						value: "",
+					});
+					if (!currentPropertyValue) defaultOption.selected = true;
+
+					optionsArray.forEach((option) => {
+						const optionEl = selectEl.createEl("option", {
+							text: option,
+							value: option,
+						});
+						if (option === currentPropertyValue)
+							optionEl.selected = true;
+					});
+
+					selectEl.addEventListener("change", async (event) => {
+						const newValue = (event.target as HTMLSelectElement).value;
+						await this.plugin.updateChapterProperty(
+							file,
+							propertyNameToChange,
+							newValue
+						);
+					});
+				}
 			}
 		}
 	}
@@ -600,6 +747,28 @@ export default class NovelChapterPlugin extends Plugin {
 		);
 		chapterFiles.sort((a, b) => a.path.localeCompare(b.path));
 		return chapterFiles;
+	}
+
+	public async moveChapter(fileToMove: TFile, destinationFolderPath: string): Promise<void> {
+		const newPath = normalizePath(`${destinationFolderPath}/${fileToMove.name}`);
+
+		if (fileToMove.path === newPath) {
+			new Notice("Chapter is already in that folder.");
+			return;
+		}
+
+		if (await this.app.vault.adapter.exists(newPath)) {
+			new Notice(`A file named "${fileToMove.name}" already exists in the destination.`);
+			return;
+		}
+
+		try {
+			await this.app.fileManager.renameFile(fileToMove, newPath);
+			new Notice(`Moved "${fileToMove.basename}" successfully.`);
+		} catch (error) {
+			console.error("Error moving chapter:", error);
+			new Notice("Failed to move chapter. See console for details.");
+		}
 	}
 
 	// Helper to find which project a file belongs to
