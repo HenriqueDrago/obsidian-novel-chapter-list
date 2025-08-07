@@ -38,10 +38,10 @@
 /* New Chapter Button */
 button.novel-chapter-new-button {
     flex-shrink: 0;
-    padding: 8px 15px;
-    background-color: var(--interactive-accent);
+    padding-bottom: 2px;
     color: var(--text-on-accent);
     border: none;
+    font-size: large;
 }
 button.novel-chapter-new-button:hover {
     background-color: var(--interactive-accent-hover);
@@ -114,35 +114,6 @@ button.novel-chapter-new-button:hover {
     background-color: var(--background-secondary);
     width: 100%;
     box-sizing: border-box;
-}
-
-/* Actions Cell & Buttons */
-.novel-chapter-table td.actions-cell {
-    text-align: center;
-    white-space: nowrap;
-}
-.actions-cell .button-component.action-button {
-    background-color: transparent;
-    border: none;
-    box-shadow: none;
-    padding: 4px;
-    margin: 0 5px;
-    vertical-align: middle;
-    color: var(--text-muted);
-}
-.actions-cell .button-component.action-button:hover {
-    color: var(--text-normal);
-}
-.actions-cell .button-component.action-button.delete-button:hover {
-    color: var(--text-error);
-}
-
-/* Confirmation Modal */
-.confirm-modal .modal-button-container {
-    display: flex;
-    justify-content: flex-end;
-    gap: 10px;
-    margin-top: 20px;
 }
 
 /* Placeholder Messages */

@@ -9,6 +9,7 @@ import {
 	TextComponent,
 	ButtonComponent,
 	App,
+  Menu,
 } from "obsidian";
 import {
 	NovelChapterPluginSettingsTab,
@@ -293,7 +294,7 @@ class NovelChapterView extends ItemView {
 			cls: "novel-chapter-controls-line",
 		});
 
-		// Line 1: Project Selector and New Chapter Button
+		// Line 1: Project Selector and Action Buttons
 		const selectEl = controlsLine1.createEl("select");
 		selectEl.addClass("novel-project-selector");
 		projects.forEach((project) => {
@@ -324,12 +325,79 @@ class NovelChapterView extends ItemView {
 			await this.renderChapterTable();
 		});
 
-		controlsLine1
-			.createEl("button", {
-				text: "＋ New Chapter",
-				cls: "novel-chapter-new-button",
-			})
-			.addEventListener("click", async () => {
+		// Previous Chapter Button
+		new ButtonComponent(controlsLine1)
+			.setIcon("chevron-left")
+			.setTooltip("Previous Chapter")
+			.onClick(() => {
+				const currentFile = this.app.workspace.getActiveFile();
+				if (!currentFile) {
+					new Notice("Open a chapter file to use navigation.");
+					return;
+				}
+				const project = this.plugin.findProjectForFile(currentFile);
+				if (!project || project.id !== this.selectedNovelProjectId) {
+					new Notice(
+						"The active chapter doesn't belong to the selected project."
+					);
+					return;
+				}
+				const chapters = this.plugin.getProjectChapters(project.path);
+				const currentIndex = chapters.findIndex(
+					(chap) => chap.path === currentFile.path
+				);
+				if (currentIndex > 0) {
+					this.app.workspace.openLinkText(
+						chapters[currentIndex - 1].path,
+						"",
+						false
+					);
+				} else {
+					new Notice("This is the first chapter.");
+				}
+			});
+
+		// Next Chapter Button
+		new ButtonComponent(controlsLine1)
+			.setIcon("chevron-right")
+			.setTooltip("Next Chapter")
+			.onClick(() => {
+				const currentFile = this.app.workspace.getActiveFile();
+				if (!currentFile) {
+					new Notice("Open a chapter file to use navigation.");
+					return;
+				}
+				const project = this.plugin.findProjectForFile(currentFile);
+				if (!project || project.id !== this.selectedNovelProjectId) {
+					new Notice(
+						"The active chapter doesn't belong to the selected project."
+					);
+					return;
+				}
+				const chapters = this.plugin.getProjectChapters(project.path);
+				const currentIndex = chapters.findIndex(
+					(chap) => chap.path === currentFile.path
+				);
+				if (
+					currentIndex !== -1 &&
+					currentIndex < chapters.length - 1
+				) {
+					this.app.workspace.openLinkText(
+						chapters[currentIndex + 1].path,
+						"",
+						false
+					);
+				} else {
+					new Notice("This is the last chapter.");
+				}
+			});
+
+		// New Chapter button changed to '+' icon
+		new ButtonComponent(controlsLine1)
+			.setIcon("plus")
+			.setTooltip("New Chapter")
+			.setClass("novel-chapter-new-button")
+			.onClick(async () => {
 				await this.plugin.promptAndCreateNewChapter(
 					this.selectedNovelProjectId
 				);
@@ -442,9 +510,7 @@ class NovelChapterView extends ItemView {
 				propertyColumnHeader.trim() || propertyNameToChange;
 			headerRow.createEl("th", { text: propertyHeader });
 		}
-		headerRow
-			.createEl("th", { text: "Actions" })
-			.addClass("actions-header");
+		// The "Actions" header column has been removed.
 
 		const tbody = table.createEl("tbody");
 		for (const file of chapterFiles) {
@@ -455,9 +521,36 @@ class NovelChapterView extends ItemView {
 				href: "#",
 				cls: "internal-link",
 			});
+
 			chapterLink.addEventListener("click", (ev) => {
 				ev.preventDefault();
 				this.app.workspace.openLinkText(file.path, "", false);
+			});
+
+			// --- CONTEXT MENU ---
+			chapterLink.addEventListener("contextmenu", (ev: MouseEvent) => {
+				ev.preventDefault();
+				const menu = new Menu();
+
+				menu.addItem((item) =>
+					item
+						.setTitle("Rename")
+						.setIcon("pencil")
+						.onClick(() => {
+							this.plugin.promptAndRenameChapter(file);
+						})
+				);
+
+				menu.addItem((item) =>
+					item
+						.setTitle("Delete")
+						.setIcon("trash")
+						.onClick(() => {
+							this.plugin.promptAndDeleteChapter(file);
+						})
+				);
+
+				menu.showAtMouseEvent(ev);
 			});
 
 			if (propertyNameToChange && optionsArray.length > 0) {
@@ -491,27 +584,6 @@ class NovelChapterView extends ItemView {
 					);
 				});
 			}
-
-			// Actions Cell
-			const actionsCell = row.createEl("td");
-			actionsCell.addClass("actions-cell");
-
-			const renameButton = new ButtonComponent(actionsCell)
-				.setIcon("pencil")
-				.setTooltip("Rename chapter")
-				.onClick(() => {
-					this.plugin.promptAndRenameChapter(file);
-				});
-			renameButton.buttonEl.addClass("action-button");
-
-			const deleteButton = new ButtonComponent(actionsCell)
-				.setIcon("trash")
-				.setTooltip("Delete chapter")
-				.onClick(() => {
-					this.plugin.promptAndDeleteChapter(file);
-				});
-			deleteButton.buttonEl.addClass("action-button");
-			deleteButton.buttonEl.addClass("delete-button");
 		}
 	}
 }
@@ -520,7 +592,7 @@ export default class NovelChapterPlugin extends Plugin {
 	settings: InternalNovelChapterPluginSettings;
 
 	// Helper to get sorted chapters for a given project path
-	private getProjectChapters(projectPath: string): TFile[] {
+	public getProjectChapters(projectPath: string): TFile[] {
 		if (!projectPath || projectPath.trim() === "") return [];
 		const allMarkdownFiles = this.app.vault.getMarkdownFiles();
 		const chapterFiles = allMarkdownFiles.filter((file) =>
@@ -531,7 +603,7 @@ export default class NovelChapterPlugin extends Plugin {
 	}
 
 	// Helper to find which project a file belongs to
-	private findProjectForFile(file: TFile): NovelProject | null {
+	public findProjectForFile(file: TFile): NovelProject | null {
 		if (!file) return null;
 		return (
 			this.settings.novelProjects.find(
