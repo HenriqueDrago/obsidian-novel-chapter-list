@@ -10,13 +10,13 @@ export interface NovelProject {
 
 // Define the plugin settings interface
 export interface NovelChapterPluginSettings {
-	novelProjects: NovelProject[];
-	propertyNameToChange: string;
-	propertyColumnHeader: string;
-	propertyOptions: string;
-	chapterTemplatePath: string;
-	otherGroupName: string;
-	excludeOtherFromCount: boolean;
+	novelProjects: NovelProject[]; // Array of novel projects
+	propertyNameToChange: string; // The frontmatter property to change
+	propertyColumnHeader: string; // Display name for the property column
+	propertyOptions: string; // Comma-separated options for the dropdown
+	chapterTemplatePath: string; // Path to the chapter template file
+	otherGroupName: string; // Name for the "Other" group
+	excludeOtherFromCount: boolean; // Whether to exclude "Other" from total count
 }
 
 // Define the default settings
@@ -27,9 +27,9 @@ export const DEFAULT_SETTINGS: NovelChapterPluginSettings = {
 			name: "My First Novel",
 			path: "Novel/Chapters",
 		},
-	],
+	], // Default to one example novel project
 	propertyNameToChange: "status", // Default property to change
-	propertyColumnHeader: "",
+	propertyColumnHeader: "", // Default to empty, will use propertyNameToChange if empty
 	propertyOptions: "To Do, Done, In Progress", // Default options for the dropdown
 	chapterTemplatePath: "", // Default to no template
 	otherGroupName: "Other", // Default name for the "Other" group
@@ -38,24 +38,27 @@ export const DEFAULT_SETTINGS: NovelChapterPluginSettings = {
 
 // Helper to generate a unique ID
 function generateId(): string {
-	return `novel-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+	return `novel-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
 }
 
 // Create a setting tab for the plugin
 export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 	plugin: NovelChapterPlugin;
 
+	// Initialize with the app and plugin instance
 	constructor(app: App, plugin: NovelChapterPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
 
+	// Display the settings UI
 	display(): void {
-		const { containerEl } = this;
-		containerEl.empty();
+		const { containerEl } = this; // Get the container element
+		containerEl.empty(); // Clear existing content
 
-		containerEl.createEl("h2", { text: "Novel Chapter Plugin Settings" });
+		containerEl.createEl("h2", { text: "Novel Chapter Plugin Settings" }); // Title
 
+		// Create setting for selecting the frontmatter property to change
 		new Setting(containerEl)
 			.setName("Target Property Name")
 			.setDesc(
@@ -67,12 +70,13 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.propertyNameToChange)
 					.onChange(async (value) => {
 						this.plugin.settings.propertyNameToChange =
-							value.trim();
+							value.trim(); // Trim whitespace
 						await this.plugin.saveSettings();
-						this.plugin.refreshNovelChapterView();
+						this.plugin.refreshNovelChapterView(); // Refresh to update the column header if needed
 					})
 			);
-
+		
+		// Create setting for customizing the property column header display name
 		new Setting(containerEl)
 			.setName("Property Column Header Display Name")
 			.setDesc(
@@ -84,12 +88,13 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.propertyColumnHeader)
 					.onChange(async (value) => {
 						this.plugin.settings.propertyColumnHeader =
-							value.trim();
+							value.trim(); // Trim whitespace
 						await this.plugin.saveSettings();
-						this.plugin.refreshNovelChapterView();
+						this.plugin.refreshNovelChapterView(); // Refresh to update the column header
 					})
 			);
 
+		// Create setting for defining the dropdown options
 		new Setting(containerEl)
 			.setName("Property Options")
 			.setDesc(
@@ -102,11 +107,11 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.propertyOptions = value;
 						await this.plugin.saveSettings();
-						this.plugin.refreshNovelChapterView();
+						this.plugin.refreshNovelChapterView(); // Refresh to update the dropdown options
 					})
 			);
 
-		// New Setting for Chapter Template Path
+		// Create setting for specifying the chapter template file path
 		new Setting(containerEl)
 			.setName("Chapter Template File Path")
 			.setDesc(
@@ -122,10 +127,10 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.chapterTemplatePath = value.trim();
 						await this.plugin.saveSettings();
-						// No direct view refresh needed here unless the view uses this setting directly for display
 					})
 			);
-
+		
+		// Create setting for naming the "Other" group
 		new Setting(containerEl)
 			.setName('Name for "Other" group')
 			.setDesc(
@@ -140,7 +145,8 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
-
+		
+		// Create setting for excluding the "Other" group from total chapter count
 		new Setting(containerEl)
 			.setName('Exclude "Other" group from total count')
 			.setDesc(
@@ -155,7 +161,7 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 					})
 			);
 
-		containerEl.createEl("hr");
+		containerEl.createEl("hr"); // Horizontal rule for separation
 
 		// Section for managing Novel Projects
 		containerEl.createEl("h3", { text: "Novel Projects" });
@@ -163,8 +169,10 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 			cls: "novel-projects-container",
 		});
 
+		// Initial render of the novel projects list
 		this.renderNovelProjects(novelProjectsContainer);
 
+		// Button to add a new novel project
 		new Setting(containerEl)
 			.setName("Add New Novel Project")
 			.setDesc("Add a new novel to track.")
@@ -173,6 +181,7 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 					.setButtonText("Add Novel")
 					.setCta()
 					.onClick(async () => {
+						// Add a new novel project with a unique ID and default name
 						this.plugin.settings.novelProjects.push({
 							id: generateId(),
 							name: `New Novel ${
@@ -181,27 +190,31 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 							path: "",
 						});
 						await this.plugin.saveSettings();
-						this.renderNovelProjects(novelProjectsContainer);
-						this.plugin.refreshNovelChapterView(true);
+						this.renderNovelProjects(novelProjectsContainer); // Re-render the list
+						this.plugin.refreshNovelChapterView(true); // Refresh the view
 					})
 			);
 	}
 
 	// Renders the list of novel projects
 	private renderNovelProjects(containerEl: HTMLElement): void {
-		containerEl.empty();
+		containerEl.empty(); // Clear existing content
 
+		// If no projects, show a message
 		if (this.plugin.settings.novelProjects.length === 0) {
 			containerEl.createEl("p", {
 				text: "No novel projects configured. Add one below.",
 			});
 		}
 
+		// Render each novel project with its settings
 		this.plugin.settings.novelProjects.forEach((project, index) => {
+			// Create a setting for each novel project
 			const projectSetting = new Setting(containerEl)
 				.setName(`Novel ${index + 1}`)
 				.setDesc(`Configuration for ${project.name || "this novel"}.`);
 
+			// Text input for the novel name
 			projectSetting.addText((text) =>
 				text
 					.setPlaceholder("Novel Name (e.g., My Epic Saga)")
@@ -209,10 +222,11 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						project.name = value.trim();
 						await this.plugin.saveSettings();
-						this.plugin.refreshNovelChapterView(true);
+						this.plugin.refreshNovelChapterView(true); // Refresh the view
 					})
 			);
 
+			// Text input for the folder path
 			projectSetting.addText((text) =>
 				text
 					.setPlaceholder(
@@ -222,19 +236,21 @@ export class NovelChapterPluginSettingsTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						project.path = value.trim();
 						await this.plugin.saveSettings();
-						this.plugin.refreshNovelChapterView(true);
+						this.plugin.refreshNovelChapterView(true); // Refresh the view
 					})
 			);
 
+			// Button to remove the novel project
 			projectSetting.addButton((button) =>
 				button
 					.setIcon("trash")
 					.setTooltip("Remove this novel project")
+					// Set up the click handler to remove the project
 					.onClick(async () => {
-						this.plugin.settings.novelProjects.splice(index, 1);
+						this.plugin.settings.novelProjects.splice(index, 1); // Remove this project from the array
 						await this.plugin.saveSettings();
-						this.renderNovelProjects(containerEl);
-						this.plugin.refreshNovelChapterView(true);
+						this.renderNovelProjects(containerEl); // Re-render the list
+						this.plugin.refreshNovelChapterView(true); // Refresh the view
 					})
 			);
 		});

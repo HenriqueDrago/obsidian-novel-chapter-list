@@ -1,9 +1,0 @@
-{
-  "id": "obsidian-chapter-list-view",
-  "name": "Novel Chapter List View",
-  "version": "1.5.0",
-  "minAppVersion": "0.12.0",
-  "description": "An obsidian plugin that adds a custom view for displaying novel chapters in a table format.",
-  "author": "8D",
-  "main": "main.js"
-}
