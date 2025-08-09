@@ -1,2 +1,2 @@
-# 8D's Custom Obsidian Plugin
-A personal obsidian plugin that had several functions.
+# Obsidian Novel Chapter List
+A personal obsidian plugin that adds a specialized view for seeing and managing novel chapters.
