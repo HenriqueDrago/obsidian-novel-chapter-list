@@ -177,3 +177,7 @@ button.novel-chapter-new-button:hover {
 	vertical-align: middle;
 	margin-right: 4px;
 }
+
+.modal-folder-select-container {
+    margin-top: 5px;
+}

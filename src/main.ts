@@ -195,6 +195,93 @@ class ChapterNameModal extends Modal {
 	}
 }
 
+// Modal for creating a new chapter, with folder selection
+class NewChapterModal extends Modal {
+	onSubmit: (folderPath: string, chapterName: string) => void; // Callback to execute on submit
+	private folderOptions: { name: string; path: string }[]; // List of options for the folder selector
+	private modalTitle: string; // Title of the Modal
+	private ctaButtonText: string; // Text of the call-to-action button
+
+	constructor(
+		app: App,
+		title: string,
+		ctaText: string,
+		folderOptions: { name: string; path: string }[],
+		onSubmit: (folderPath: string, chapterName: string) => void
+	) {
+		super(app);
+		this.modalTitle = title;
+		this.ctaButtonText = ctaText;
+		this.folderOptions = folderOptions;
+		this.onSubmit = onSubmit;
+	}
+
+	// Execute on open
+	onOpen() {
+		const { contentEl } = this;
+		contentEl.empty();
+
+		contentEl.createEl("h2", { text: this.modalTitle });
+
+		// Text input for the new chapter name
+		const textInput = new TextComponent(contentEl)
+			.setPlaceholder("Chapter name");
+		textInput.inputEl.addClass("modal-text-input");
+		textInput.inputEl.focus(); // Focus on the name input first
+
+		// Dropdown for folder selection
+		const folderSelectContainer = contentEl.createDiv({ cls: "modal-folder-select-container" });
+		folderSelectContainer.createEl("label", { text: "Create in folder: "});
+		const folderSelectEl = folderSelectContainer.createEl("select");
+		
+		// Set the options for the dropdown
+		this.folderOptions.forEach(opt => {
+			folderSelectEl.createEl("option", {
+				text: opt.name,
+				value: opt.path
+			});
+		});
+
+		const buttonContainer = contentEl.createDiv({
+			cls: "modal-button-container",
+		});
+
+		// OnSubmit action (confirm button)
+		const doSubmit = () => {
+			const chapterName = textInput.getValue().trim(); // Get chapter name
+			const selectedFolderPath = folderSelectEl.value; // Get selected folder
+
+			// Check if there's a chapter name selected
+			if (chapterName) {
+				this.close();
+				this.onSubmit(selectedFolderPath, chapterName);
+			} else {
+				new Notice("Chapter name cannot be empty.");
+			}
+		};
+
+		new ButtonComponent(buttonContainer)
+			.setButtonText(this.ctaButtonText)
+			.setCta()
+			.onClick(doSubmit);
+
+		new ButtonComponent(buttonContainer)
+			.setButtonText("Cancel")
+			.onClick(() => this.close());
+
+		textInput.inputEl.addEventListener("keypress", (e) => {
+			if (e.key === "Enter") {
+				e.preventDefault();
+				doSubmit();
+			}
+		});
+	}
+
+	onClose() {
+		this.contentEl.empty();
+	}
+}
+
 // Define the custom view class
 class NovelChapterView extends ItemView {
 	plugin: NovelChapterPlugin; // Reference to the plugin instance
@@ -372,6 +459,29 @@ class NovelChapterView extends ItemView {
 			this.updateLeafDisplayText(); // Update the leaf display text
 			await this.renderChapterTable(); // Re-render the chapter table for the selected project
 		});
+
+		new ButtonComponent(controlsLine1)
+			.setIcon("file-symlink")
+			.setTooltip("Open Template Folder")
+			.onClick(() => {
+				// Get the template path
+				const templatePath = this.plugin.settings.chapterTemplatePath;
+
+				// Check if template path exist
+				if(!templatePath || templatePath.trim() === "") {
+					new Notice("Chapter template path is not configured in settings.");
+            		return;
+				}
+
+				// Get current open file
+				const currentFile = this.app.workspace.getActiveFile();
+
+				this.app.workspace.openLinkText(
+						templatePath,
+						"",
+						!currentFile
+					);
+			});
 
 		// Previous Chapter Button
 		new ButtonComponent(controlsLine1)
@@ -1030,13 +1140,38 @@ export default class NovelChapterPlugin extends Plugin {
 			return;
 		}
 
+		const projectRootPath = normalizePath(currentNovelProject.path);
+		const projectFolder = this.app.vault.getAbstractFileByPath(projectRootPath);
+	
+		// Create a list to hold the folder choices for the dropdown.
+		const folderOptions: { name: string; path: string }[] = [];
+	
+		// The first option is always the project's root folder (other group)
+		folderOptions.push({
+			name: this.settings.otherGroupName || "Other",
+			path: projectRootPath,
+		});
+		
+		// If the project folder exists, look for subfolders inside it.
+		if (projectFolder instanceof TFolder) {
+			for (const child of projectFolder.children) {
+				if (child instanceof TFolder) {
+					// Add each subfolder to our list of options.
+					folderOptions.push({
+						name: child.name,
+						path: child.path,
+					});
+				}
+			}
+		}
+
 		// Create and open a modal to prompt the user for a new chapter name
-		new ChapterNameModal(
+		new NewChapterModal(
 			this.app,
 			"Enter New Chapter Name",
 			"Create Chapter",
-			"",
-			async (chapterName) => {
+			folderOptions,
+			async (selectedFolderPath, chapterName) => {
 
 				// Sanitize the chapter name to remove invalid characters
 				const sanitizedFileName = chapterName
@@ -1047,18 +1182,17 @@ export default class NovelChapterPlugin extends Plugin {
 					return;
 				}
 
-				// Normalize the project path to ensure it is valid
-				const folderPath = normalizePath(currentNovelProject.path);
-				if (!(await this.app.vault.adapter.exists(folderPath))) {
+				// Check if the selected folder exists
+				if (!(await this.app.vault.adapter.exists(selectedFolderPath))) {
 					new Notice(
-						`Project folder "${folderPath}" does not exist.`
+						`Project folder "${selectedFolderPath}" does not exist.`
 					);
 					return;
 				}
 
 				// Create the full file path for the new chapter
 				const filePath = normalizePath(
-					`${folderPath}/${sanitizedFileName}.md`
+					`${selectedFolderPath}/${sanitizedFileName}.md`
 				);
 
 				// Check if a file with the same name already exists
